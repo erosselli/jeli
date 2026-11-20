@@ -1,0 +1,6 @@
+# Tasks, agent sessions and logs: personal data, never committed.
+data/
+
+__pycache__/
+.pytest_cache/
+.ruff_cache/

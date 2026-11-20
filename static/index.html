@@ -1,0 +1,845 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>jeli</title>
+<link rel="icon" type="image/svg+xml" href="logo.svg">
+<link rel="stylesheet" href="palette.css">
+<style>
+  /* Colors come only from palette.css; this file never defines its own. */
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  }
+  main { max-width: 1440px; margin: 0 auto; padding: 32px 16px 64px; }
+  header { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  h1 { display: flex; align-items: center; gap: 10px; font-size: 22px; margin: 0; letter-spacing: -0.01em; }
+  .summary { color: var(--muted); font-size: 13px; }
+  .summary b { color: var(--text); font-weight: 600; }
+  .summary .warn { color: var(--overdue); }
+  .refreshed { color: var(--muted); font-size: 12px; margin-top: 4px; }
+  .error { color: var(--overdue); }
+  a { color: var(--link); text-decoration: underline; text-decoration-color: var(--link-underline); text-underline-offset: 2px; }
+  a:hover { text-decoration-color: var(--link); }
+
+  .board { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-top: 20px; align-items: start; }
+  @media (max-width: 900px) { .board { grid-template-columns: minmax(0, 1fr); } }
+  .column { background: var(--column); border-radius: 12px; padding: 10px; min-height: 120px; }
+  .column-todo { background: var(--status-todo-column); }
+  .column-in_progress { background: var(--status-in_progress-column); }
+  .column-blocked { background: var(--status-blocked-column); }
+  .column-done { background: var(--status-done-column); }
+  .column h2 { display: flex; align-items: center; gap: 8px; margin: 2px 4px 10px; font-size: 13px; font-weight: 600; }
+  .column h2 .count { color: var(--muted); font-weight: 500; }
+  .column h2 .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .dot-todo { background: var(--status-todo-dot); }
+  .dot-in_progress { background: var(--status-in_progress-dot); }
+  .dot-blocked { background: var(--status-blocked-dot); }
+  .dot-done { background: var(--status-done-dot); }
+  .older { color: var(--muted); font-size: 12px; margin: 8px 4px 0; }
+  ol.tasks { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+  .task, .agent { background: var(--card); border: 1px solid var(--card-border); border-radius: 10px; padding: 12px 14px; box-shadow: var(--shadow); }
+  .row { display: flex; align-items: flex-start; gap: 10px; }
+  .body { flex: 1; min-width: 0; }
+  .title { font-weight: 600; overflow-wrap: anywhere; }
+  .meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 6px; font-size: 12.5px; color: var(--muted); }
+  .id { color: var(--muted); font-weight: 400; font-variant-numeric: tabular-nums; }
+  .tag { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px; font-weight: 500; white-space: nowrap; }
+  .kind { background: var(--kind-other-tag-bg); color: var(--kind-tag-fg); font-weight: 600; }
+  .kind-implement { background: var(--kind-implement-tag-bg); }
+  .kind-review { background: var(--kind-review-tag-bg); }
+  .kind-investigate { background: var(--kind-investigate-tag-bg); }
+  .kind-release { background: var(--kind-release-tag-bg); }
+  .kind-other { background: var(--kind-other-tag-bg); }
+  .status-todo { background: var(--status-todo-tag-bg); color: var(--status-todo-tag-fg); }
+  .status-in_progress { background: var(--status-in_progress-tag-bg); color: var(--status-in_progress-tag-fg); }
+  .status-blocked { background: var(--status-blocked-tag-bg); color: var(--status-blocked-tag-fg); }
+  .status-done { background: var(--status-done-tag-bg); color: var(--status-done-tag-fg); }
+  .due-overdue { color: var(--overdue); font-weight: 600; }
+  .due-today { color: var(--due-today); font-weight: 600; }
+  .branch { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11.5px; overflow-wrap: anywhere; }
+
+  .done-when { margin-top: 6px; font-size: 12.5px; color: var(--muted); font-style: italic; overflow-wrap: anywhere; }
+  .links { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 6px; font-size: 12.5px; }
+  .links a { overflow-wrap: anywhere; }
+
+  details.subtasks { margin-top: 8px; }
+  details.subtasks > summary { cursor: pointer; color: var(--muted); font-size: 12.5px; width: fit-content; }
+  ol.subtasks { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+  li.sub { border: 1px solid var(--subtask-border); border-radius: 8px; padding: 8px 10px; }
+  ol.subtasks .title { font-weight: 500; }
+  .sub-done .title { color: var(--muted); text-decoration: line-through; }
+
+  .column-done .task { opacity: 0.85; }
+  .empty { color: var(--muted); font-size: 12.5px; margin: 4px; }
+
+  li.task, li.sub { position: relative; cursor: grab; }
+  li.dragging { opacity: 0.4; }
+  .drop-before::before, .drop-after::after {
+    content: ""; position: absolute; left: 0; right: 0; height: 3px; border-radius: 2px; background: var(--drop-indicator);
+  }
+  .drop-before::before { top: -6px; }
+  .drop-after::after { bottom: -6px; }
+  .column.drag-over { outline: 2px dashed var(--drag-over-outline); outline-offset: -2px; }
+
+  [hidden] { display: none !important; }
+  .brand { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  nav.tabs { display: inline-flex; gap: 2px; padding: 3px; background: var(--column); border-radius: 10px; }
+  nav.tabs a { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 8px; color: var(--muted); text-decoration: none; font-size: 13px; font-weight: 500; }
+  nav.tabs a.active { background: var(--tab-active-bg); color: var(--text); }
+  .badge { min-width: 18px; padding: 0 6px; border-radius: 999px; background: var(--tab-badge-bg); color: var(--tab-badge-fg); font-size: 11.5px; font-weight: 700; text-align: center; }
+  .badge:empty { display: none; }
+
+  /* Live-agent link on task cards: a dot that pulses while an agent runs or needs me (still when
+     it's idle), and a few words saying what the agent is up to. */
+  a.live-link { display: inline-flex; align-items: center; gap: 5px; margin-left: 8px; font-size: 12px; font-weight: 500; color: var(--muted); text-decoration: none; white-space: nowrap; vertical-align: 1px; }
+  a.live-link:hover { color: var(--text); text-decoration: underline; text-decoration-color: var(--link-underline); }
+  .last-agent { display: flex; align-items: center; gap: 8px; margin-top: 6px; font-size: 12px; color: var(--muted); }
+  .live { display: inline-block; flex: none; width: 8px; height: 8px; border-radius: 50%; }
+  .live-needs_you { background: var(--agent-needs_you-dot); animation: pulse 1.2s ease-in-out infinite; }
+  .live-running { background: var(--agent-running-dot); animation: pulse 2s ease-in-out infinite; }
+  .live-others { background: var(--agent-others-dot); }
+  .live-quiet { background: var(--agent-quiet-dot); }
+  @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.3; transform: scale(0.75); } }
+  @media (prefers-reduced-motion: reduce) { .live { animation: none !important; } }
+
+  .column-needs_you { background: var(--agent-needs_you-column); }
+  .column-running { background: var(--agent-running-column); }
+  .column-others { background: var(--agent-others-column); }
+  .column-quiet { background: var(--agent-quiet-column); }
+  .dot-needs_you { background: var(--agent-needs_you-dot); }
+  .dot-running { background: var(--agent-running-dot); }
+  .dot-others { background: var(--agent-others-dot); }
+  .dot-quiet { background: var(--agent-quiet-dot); }
+  .agent-blocked { background: var(--agent-blocked-tag-bg); color: var(--agent-blocked-tag-fg); }
+  .agent-your_turn { background: var(--agent-your_turn-tag-bg); color: var(--agent-your_turn-tag-fg); }
+  .agent-working { background: var(--agent-working-tag-bg); color: var(--agent-working-tag-fg); }
+  .agent-waiting_bg { background: var(--agent-waiting_bg-tag-bg); color: var(--agent-waiting_bg-tag-fg); }
+  .agent-waiting_others { background: var(--agent-waiting_others-tag-bg); color: var(--agent-waiting_others-tag-fg); }
+  .agent-idle { background: var(--agent-idle-tag-bg); color: var(--agent-idle-tag-fg); }
+  .agent-ended { background: var(--agent-ended-tag-bg); color: var(--agent-ended-tag-fg); }
+  .agent .untracked { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .activity { margin-top: 8px; font-size: 12.5px; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; color: var(--muted); }
+  .where { justify-content: space-between; }
+  a.to-task { color: inherit; text-decoration: none; }
+  a.to-task:hover { text-decoration: underline; text-decoration-color: var(--link-underline); }
+  .highlight { outline: 2px solid var(--highlight); outline-offset: 2px; }
+  .ids { display: inline-flex; align-items: baseline; gap: 8px; min-width: 0; }
+  .agent-name { color: var(--text); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sid { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11.5px; }
+  .agent-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+  .agent-head .title { flex: 1; min-width: 0; }
+  .copy, .sound { flex: none; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; background: var(--button-bg); border: 1px solid var(--button-border); border-radius: 6px; color: var(--button-fg); font: inherit; font-size: 12px; font-weight: 500; padding: 2px 8px; cursor: pointer; }
+  .copy:hover, .sound:hover { border-color: var(--button-hover-border); }
+  .copy svg, .sound svg { width: 13px; height: 13px; flex: none; }
+  .sound { padding: 4px 10px; font-size: 13px; }
+  details.ended { margin-top: 10px; }
+  details.ended > summary { cursor: pointer; color: var(--muted); font-size: 12.5px; margin: 0 4px 8px; width: fit-content; }
+  details.ended .agent { opacity: 0.85; }
+
+  #toast {
+    position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); max-width: min(560px, calc(100% - 32px));
+    background: var(--card); color: var(--text); border: 1px solid var(--error); border-radius: 10px;
+    padding: 10px 14px; box-shadow: var(--shadow); font-size: 13px; display: none;
+  }
+  #toast.show { display: block; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="brand">
+      <h1><img src="logo.svg" alt="" width="28" height="28">jeli</h1>
+      <nav class="tabs">
+        <a href="#" data-tab="tasks">Tasks</a>
+        <a href="#agents" data-tab="agents">Agents <span class="badge" id="needs-you" title="agents that need me"></span></a>
+      </nav>
+      <button type="button" class="sound" id="sound"></button>
+    </div>
+    <div>
+      <div class="summary" id="summary"></div>
+      <div class="refreshed" id="refreshed"></div>
+    </div>
+  </header>
+  <div class="board" id="board"></div>
+  <div class="board agents-board" id="agents" hidden></div>
+</main>
+<div id="toast" role="alert"></div>
+<script>
+  const REFRESH_MS = 5000;
+  const JIRA_BASE = "https://ethyca.atlassian.net/browse/";
+  const DONE_LIMIT = 10;
+  const COLUMNS = [
+    ["todo", "To do"],
+    ["in_progress", "In progress"],
+    ["blocked", "Blocked"],
+    ["done", "Done"],
+  ];
+  let lastPayload = null;
+
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+  function todayISO() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }
+
+  function prLink(pr) {
+    const m = /^([\w.-]+)\/([\w.-]+)#(\d+)$/.exec(pr);
+    if (!m) return esc(pr);
+    return `<a href="https://github.com/${m[1]}/${m[2]}/pull/${m[3]}" target="_blank" rel="noopener">${esc(m[2])}#${m[3]}</a>`;
+  }
+
+  function dueTag(due, status) {
+    if (!due) return "";
+    const today = todayISO();
+    let cls = "";
+    let label = `due ${due}`;
+    if (status !== "done" && due < today) { cls = "due-overdue"; label = `overdue (${due})`; }
+    else if (status !== "done" && due === today) { cls = "due-today"; label = "due today"; }
+    return `<span class="${cls}">${esc(label)}</span>`;
+  }
+
+  // Top-level cards sit in their status column, so they only need the stage; subtasks show both.
+  function statusTag(t, parent) {
+    if (!parent) return t.stage ? `<span class="tag status-${esc(t.status)}">${esc(t.stage)}</span>` : "";
+    const label = t.stage ? `${t.status} · ${t.stage}` : t.status;
+    return `<span class="tag status-${esc(t.status)}">${esc(label)}</span>`;
+  }
+
+  function linkLabel(url) {
+    try {
+      const u = new URL(url);
+      const path = u.pathname.replace(/\/$/, "");
+      const short = path.length > 28 ? `${path.slice(0, 27)}…` : path;
+      return `${u.hostname.replace(/^www\./, "")}${short}`;
+    } catch {
+      return url;
+    }
+  }
+
+  function linksBlock(t) {
+    const links = t.links || [];
+    if (!links.length) return "";
+    const items = links.map((l) => /^https?:\/\//.test(l)
+      ? `<a href="${esc(l)}" target="_blank" rel="noopener" title="${esc(l)}">${esc(linkLabel(l))}</a>`
+      : `<span>${esc(l)}</span>`);
+    return `<div class="links">${items.join("")}</div>`;
+  }
+
+  function meta(t, parent) {
+    const bits = [statusTag(t, parent)];
+    if (!parent && t.kind) bits.unshift(`<span class="tag kind kind-${esc(t.kind)}">${esc(t.kind)}</span>`);
+    if (t.ticket) bits.push(`<a href="${JIRA_BASE}${encodeURIComponent(t.ticket)}" target="_blank" rel="noopener">${esc(t.ticket)}</a>`);
+    if (t.pr) bits.push(prLink(t.pr));
+    if (t.repo && !t.pr) bits.push(esc(t.repo));
+    if (t.branch) bits.push(`<span class="branch">${esc(t.branch)}</span>`);
+    const due = dueTag(t.due, t.status);
+    if (due) bits.push(due);
+    bits.push(`<span>updated ${esc(t.updated || t.created || "")}</span>`);
+    return `<div class="meta">${bits.join("")}</div>`;
+  }
+
+  // Which cards have their subtasks expanded. Collapsed by default; remembered per browser.
+  const EXPANDED_KEY = "jeli.expanded";
+  const expanded = new Set((() => {
+    try { return JSON.parse(localStorage.getItem(EXPANDED_KEY) || "[]"); } catch { return []; }
+  })());
+
+  function saveExpanded() {
+    try { localStorage.setItem(EXPANDED_KEY, JSON.stringify([...expanded])); } catch { /* not persisted */ }
+  }
+
+  const STATUS_LABELS = { blocked: "blocked", in_progress: "in progress", todo: "to do", done: "done" };
+
+  function subtasksBlock(t, subs) {
+    const counts = {};
+    t.subtasks.forEach((s) => { counts[s.status] = (counts[s.status] || 0) + 1; });
+    const breakdown = Object.keys(STATUS_LABELS).filter((s) => counts[s]).map((s) => `${counts[s]} ${STATUS_LABELS[s]}`).join(", ");
+    const n = t.subtasks.length;
+    return `<details class="subtasks" data-task="${t.id}"${expanded.has(t.id) ? " open" : ""}>
+      <summary>${n} subtask${n === 1 ? "" : "s"} · ${breakdown}</summary>
+      <ol class="subtasks">${subs}</ol>
+    </details>`;
+  }
+
+  function taskItem(t, parent) {
+    const subs = (t.subtasks || []).map((s) => taskItem(s, t)).join("");
+    const cls = parent ? `sub${t.status === "done" ? " sub-done" : ""}` : "task";
+    return `<li class="${cls}" draggable="true" data-id="${t.id}" data-parent="${parent ? parent.id : ""}" data-status="${esc(t.status)}">
+      <div class="row">
+        <div class="body">
+          <div class="title">${esc(t.title)} <span class="id">#${t.id}</span>${liveDot(t.id)}</div>
+          ${meta(t, parent)}
+          ${lastAgent(t.id)}
+          ${t.done_when ? `<div class="done-when">done when: ${esc(t.done_when)}</div>` : ""}
+          ${linksBlock(t)}
+          ${subs ? subtasksBlock(t, subs) : ""}
+        </div>
+      </div>
+    </li>`;
+  }
+
+  function summary(open) {
+    const today = todayISO();
+    const blocked = open.filter((t) => t.status === "blocked").length;
+    const overdue = open.filter((t) => t.due && t.due < today).length;
+    const dueToday = open.filter((t) => t.due === today).length;
+    const parts = [`<b>${open.length}</b> open`, `<b>${blocked}</b> blocked`];
+    if (dueToday) parts.push(`<b>${dueToday}</b> due today`);
+    if (overdue) parts.push(`<b class="warn">${overdue}</b> <span class="warn">overdue</span>`);
+    return parts.join(" · ");
+  }
+
+  function column(status, title, cards, total) {
+    const items = cards.length ? cards.join("") : `<li class="empty">Nothing here.</li>`;
+    const older = total > cards.length ? `<div class="older">+ ${total - cards.length} older</div>` : "";
+    return `<section class="column column-${status}" data-status="${status}">
+      <h2><span class="dot dot-${status}"></span>${title}<span class="count">${total}</span></h2>
+      <ol class="tasks">${items}</ol>${older}
+    </section>`;
+  }
+
+  function render(data) {
+    lastTasks = data;
+    summaries.tasks = summary(data.open);
+    showSummary();
+    document.getElementById("board").innerHTML = COLUMNS.map(([status, title]) => {
+      if (status === "done") {
+        const cards = data.done.slice(0, DONE_LIMIT).map((t) => taskItem(t, null));
+        return column(status, title, cards, data.done.length);
+      }
+      // Open tasks arrive in priority order, so filtering keeps each column in that order.
+      const cards = data.open.filter((t) => t.status === status).map((t) => taskItem(t, null));
+      return column(status, title, cards, cards.length);
+    }).join("");
+  }
+
+  async function fetchText(path) {
+    const res = await fetch(path, { cache: "no-store" });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.text();
+  }
+
+  async function refreshTasks() {
+    // Re-rendering mid-drag would pull the card out from under the pointer.
+    if (drag) return;
+    const text = await fetchText("/api/tasks");
+    if (text !== lastPayload || liveChanged) {
+      lastPayload = text;
+      liveChanged = false;
+      render(JSON.parse(text));
+      applyFocus();
+    }
+  }
+
+  // Both views refresh on every tick: the Tasks board shows live-agent dots, and the Agents tab
+  // badge counts agents that need me whichever tab is open.
+  // Agents go first so the dots on the board are current, but either failing leaves the other working.
+  async function refresh() {
+    const stamp = document.getElementById("refreshed");
+    const failures = [];
+    for (const [name, step] of [["agents", refreshAgents], ["tasks", refreshTasks]]) {
+      try {
+        await step();
+      } catch (err) {
+        failures.push(`${name}: ${err.message}`);
+      }
+    }
+    if (failures.length) {
+      stamp.textContent = `can't reach jeli (${failures.join(", ")}); is jeli.py ui still running, and restarted since the last update?`;
+      stamp.classList.add("error");
+    } else {
+      stamp.textContent = `refreshed ${new Date().toLocaleTimeString()}`;
+      stamp.classList.remove("error");
+    }
+  }
+
+  // Agents. A session's state falls in one of four groups, most in need of me first. The API sends
+  // sessions longest waiting first within a state. waiting_others is a your_turn session whose task
+  // is blocked on someone else, e.g. a PR in review.
+  const AGENT_GROUPS = [
+    ["needs_you", "Needs you", ["blocked", "your_turn"]],
+    ["running", "Running", ["working", "waiting_bg"]],
+    ["others", "Waiting on others", ["waiting_others"]],
+    ["quiet", "Quiet", ["idle"]],
+  ];
+  const GROUP_OF = Object.fromEntries(AGENT_GROUPS.flatMap(([group, , states]) => states.map((s) => [s, group])));
+  const GROUP_RANK = { needs_you: 0, running: 1, others: 2, quiet: 3 };
+  const STATE_LABELS = { blocked: "blocked", your_turn: "your turn", working: "working", waiting_bg: "background", waiting_others: "waiting", idle: "idle", ended: "ended" };
+  const ENDED_KEY = "jeli.endedOpen";
+  let lastAgentsPayload = null;
+  let liveByTask = new Map();
+  let lastAgents = {};
+  let liveChanged = false;
+  let lastSessions = [];
+  // Needs you waits already chimed for (see checkChime). Null until the first refresh.
+  let chimed = null;
+  let lastTasks = null;
+  const summaries = { tasks: "", agents: "" };
+
+  function ago(since) {
+    if (!since) return "?";
+    const minutes = Math.max(0, Math.floor((Date.now() - new Date(since).getTime()) / 60000));
+    if (minutes < 60) return `${minutes}m`;
+    if (minutes < 24 * 60) return `${Math.floor(minutes / 60)}h${String(minutes % 60).padStart(2, "0")}m`;
+    return `${Math.floor(minutes / (24 * 60))}d`;
+  }
+
+  function stateTag(s) {
+    const label = s.state === "blocked" ? s.waiting_kind || "blocked"
+      : s.state === "waiting_others" && s.task?.stage ? s.task.stage.replaceAll("_", " ")
+      : s.state === "ended" && s.ended_reason === "gone" ? "gone" : STATE_LABELS[s.state] || s.state;
+    const since = s.state === "blocked" ? s.waiting_since : s.state_since;
+    return `<span class="tag agent-${esc(s.state)}" data-label="${esc(label)}" data-since="${esc(since)}">${esc(label)} ${ago(since)}</span>`;
+  }
+
+  // Claude's messages are markdown; cards show plain text.
+  const plain = (text) => (text || "").replace(/\*\*|__|`/g, "").replace(/^#+\s*/gm, "").trim();
+
+  function firstSentence(text) {
+    const sentence = plain(text).split(/(?<=[.!?])\s/)[0];
+    return sentence.length > 140 ? `${sentence.slice(0, 139)}…` : sentence;
+  }
+
+  // One line per card: what it's doing while it runs, what it needs from me when it's my move.
+  // The pill says the state; this says what it's about.
+  function activity(s) {
+    if (s.state === "blocked") return s.waiting_text || "";
+    // An idle session with a last message is one whose turn ended long ago.
+    if (["your_turn", "waiting_others", "idle"].includes(s.state)) return firstSentence(s.last_message);
+    if (s.state === "waiting_bg") return s.background.map((t) => t.description || t.type).join("; ");
+    if (s.state === "working") return s.last_tool || "";
+    if (s.state === "ended" && s.ended_reason !== "gone") return s.ended_reason ? `exited (${s.ended_reason})` : "";
+    return "";
+  }
+
+  // The hover on that line: the whole message, anything left running in the background, the prompt.
+  function activityDetail(s) {
+    const parts = [];
+    if (["your_turn", "waiting_others", "idle", "ended"].includes(s.state) && s.last_message) parts.push(plain(s.last_message));
+    if (s.state !== "waiting_bg" && s.background.length) {
+      parts.push("still running: " + s.background.map((b) => b.description || b.type).join("; "));
+    }
+    if (s.prompt) parts.push(`prompt: ${s.prompt}`);
+    return parts.join("\n\n");
+  }
+
+  // Two overlapping rounded squares, drawn in the button's text color.
+  const COPY_ICON = `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+    <rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/><path d="M10.5 3.5v-.5a1.5 1.5 0 0 0-1.5-1.5H4A1.5 1.5 0 0 0 2.5 3v5A1.5 1.5 0 0 0 4 9.5h.5"/></svg>`;
+
+  const shellQuote =(s) => `'${String(s).replace(/'/g, `'\\''`)}'`;
+
+  function resumeCommand(s) {
+    return (s.cwd ? `cd ${shellQuote(s.cwd)} && ` : "") + `claude --resume ${s.session_id}`;
+  }
+
+  function where(s) {
+    const repo = (s.repo || "").split("/").pop();
+    const place = [repo, s.branch].filter(Boolean).join("@") || (s.cwd || "").replace(/^\/Users\/[^/]+/, "~");
+    return place ? `<span class="branch">${esc(place)}</span>` : "";
+  }
+
+  function agentItem(s) {
+    const t = s.task;
+    const title = t
+      ? `<div class="title"><a class="to-task" href="#task-${t.id}" title="show on the task board">${esc(t.title)} <span class="id">#${t.id}</span></a></div>`
+      : `<div class="title untracked">${esc(s.name || s.prompt || "(no task)")}</div>`;
+    const bits = [];
+    if (t?.kind) bits.push(`<span class="tag kind kind-${esc(t.kind)}">${esc(t.kind)}</span>`);
+    bits.push(stateTag(s));
+    if (t?.parent) bits.push(`<a href="#task-${t.parent.id}" title="${esc(t.parent.title)}">in #${t.parent.id}</a>`);
+    if (t?.pr) bits.push(prLink(t.pr));
+    if (t && s.task_source === "branch") bits.push(`<span title="matched by branch, not linked">by branch</span>`);
+    const text = activity(s);
+    const copy = `<button class="copy" type="button" data-cmd="${esc(resumeCommand(s))}" title="${esc(resumeCommand(s))}">${COPY_ICON}<span>copy resume</span></button>`;
+    return `<li class="agent" data-session="${esc(s.session_id)}">
+      <div class="agent-head">${title}${copy}</div>
+      <div class="meta">${bits.join("")}</div>
+      ${text ? `<div class="activity" title="${esc(activityDetail(s))}">${esc(text)}</div>` : ""}
+      <div class="meta where">${where(s)}<span class="ids">${t && s.name ? `<span class="agent-name" title="session name">${esc(s.name)}</span>` : ""}<span class="sid">${esc(s.session_id.slice(0, 8))}</span></span></div>
+    </li>`;
+  }
+
+  function endedBlock(ended) {
+    if (!ended.length) return "";
+    let open = false;
+    try { open = localStorage.getItem(ENDED_KEY) === "1"; } catch { /* closed by default */ }
+    // Most recently ended first.
+    const items = ended.slice().sort((a, b) => (a.state_since < b.state_since ? 1 : -1)).map(agentItem).join("");
+    return `<details class="ended"${open ? " open" : ""}>
+      <summary>${ended.length} ended in the last 24h</summary>
+      <ol class="tasks">${items}</ol>
+    </details>`;
+  }
+
+  function renderAgents(sessions) {
+    const live = sessions.filter((s) => s.state !== "ended");
+    const ended = sessions.filter((s) => s.state === "ended");
+    const counts = { needs_you: 0, running: 0, others: 0, quiet: 0 };
+    live.forEach((s) => { counts[GROUP_OF[s.state] || "quiet"] += 1; });
+
+    document.getElementById("agents").innerHTML = AGENT_GROUPS.map(([group, title]) => {
+      const cards = live.filter((s) => (GROUP_OF[s.state] || "quiet") === group).map(agentItem);
+      const items = cards.length ? cards.join("") : `<li class="empty">Nothing here.</li>`;
+      return `<section class="column column-${group}">
+        <h2><span class="dot dot-${group}"></span>${title}<span class="count">${cards.length}</span></h2>
+        <ol class="tasks">${items}</ol>${group === "quiet" ? endedBlock(ended) : ""}
+      </section>`;
+    }).join("");
+
+    const parts = [`<b>${counts.needs_you}</b> need${counts.needs_you === 1 ? "s" : ""} you`, `<b>${counts.running}</b> running`, `<b>${counts.others}</b> waiting on others`, `<b>${counts.quiet}</b> quiet`];
+    summaries.agents = parts.join(" · ");
+    document.getElementById("needs-you").textContent = counts.needs_you || "";
+    document.title = counts.needs_you ? `(${counts.needs_you}) jeli` : "jeli";
+    showSummary();
+  }
+
+  // The most urgent live agent on each task. An agent on a subtask also marks its parent, so the dot
+  // shows when the parent's subtasks are collapsed.
+  function liveMap(sessions) {
+    const map = new Map();
+    const mark = (id, s) => {
+      const current = map.get(id);
+      if (!current || GROUP_RANK[GROUP_OF[s.state]] < GROUP_RANK[GROUP_OF[current.state]]) map.set(id, s);
+    };
+    sessions.filter((s) => s.state !== "ended" && s.task).forEach((s) => {
+      mark(s.task.id, s);
+      if (s.task.parent) mark(s.task.parent.id, s);
+    });
+    return map;
+  }
+
+  const LIVE_WORDS = {
+    permission: "agent needs permission",
+    question: "agent has a question",
+    your_turn: "agent waiting on you",
+    working: "agent working",
+    waiting_bg: "agent waiting on background",
+    waiting_others: "agent waiting on others",
+    idle: "agent idle",
+  };
+
+  function liveDot(taskId) {
+    const s = liveByTask.get(taskId);
+    if (!s) return "";
+    const group = GROUP_OF[s.state] || "quiet";
+    const words = LIVE_WORDS[s.state === "blocked" ? s.waiting_kind : s.state] || `agent ${s.state}`;
+    const hover = `go to agent ${s.session_id.slice(0, 8)} on the Agents tab`;
+    return `<a class="live-link" href="#agent-${esc(s.session_id)}" title="${esc(hover)}"><span class="live live-${group}"></span>${esc(words)}</a>`;
+  }
+
+  // A task with no live agent offers to resume the session that last worked on it, from the
+  // server's last_agents (ended sessions are kept for 30 days, past the Agents tab's 24 hours).
+  function lastAgent(taskId) {
+    const last = lastAgents[taskId];
+    if (!last || liveByTask.has(taskId)) return "";
+    const cmd = resumeCommand(last);
+    return `<div class="last-agent">last agent ${ago(last.ended)} ago
+      <button class="copy" type="button" data-cmd="${esc(cmd)}" title="${esc(cmd)}">${COPY_ICON}<span>copy resume</span></button></div>`;
+  }
+
+  // Chime once for each agent that has sat in Needs you for CHIME_AFTER_MS, so a quick back-and-forth
+  // with an agent I'm already looking at doesn't ping on every reply. The server's needs_you_since
+  // marks each wait, so going to Running and back between two refreshes still starts a new one.
+  const CHIME_AFTER_MS = 2 * 60 * 1000;
+  function checkChime(sessions) {
+    const now = Date.now();
+    const waiting = sessions
+      .filter((s) => s.needs_you_since)
+      .map((s) => ({ key: `${s.session_id} ${s.needs_you_since}`, since: new Date(s.needs_you_since).getTime() }));
+    if (chimed === null) {
+      // On page load, everything already waiting counts as heard.
+      chimed = new Set(waiting.map((w) => w.key));
+      return;
+    }
+    const due = waiting.filter((w) => !chimed.has(w.key) && now - w.since >= CHIME_AFTER_MS);
+    if (due.length) chime();
+    due.forEach((w) => chimed.add(w.key));
+    // Forget sessions that left Needs you, so the set doesn't grow forever.
+    const current = new Set(waiting.map((w) => w.key));
+    chimed.forEach((key) => { if (!current.has(key)) chimed.delete(key); });
+  }
+
+  async function refreshAgents() {
+    const text = await fetchText("/api/agents");
+    const payload = text !== lastAgentsPayload ? JSON.parse(text) : null;
+    if (payload) lastSessions = payload.sessions;
+    // Checked on every refresh, not only when the payload changes: the minute can run out while
+    // nothing else does.
+    checkChime(lastSessions);
+    if (text === lastAgentsPayload) return;
+    lastAgentsPayload = text;
+    const sessions = lastSessions;
+    renderAgents(sessions);
+    applyFocus();
+    const nextLast = payload.last_agents || {};
+    if (JSON.stringify(nextLast) !== JSON.stringify(lastAgents)) liveChanged = true;
+    lastAgents = nextLast;
+    const next = liveMap(sessions);
+    const key = (m) => JSON.stringify([...m].map(([id, s]) => [id, s.session_id, GROUP_OF[s.state]]));
+    if (key(next) !== key(liveByTask)) liveChanged = true;
+    liveByTask = next;
+  }
+
+  // A short two-note chime, synthesized so there's no sound file to serve. Browsers keep audio
+  // suspended until the page gets a click or key press, so the context is resumed on the first one.
+  const MUTED_KEY = "jeli.muted";
+  let muted = false;
+  try { muted = localStorage.getItem(MUTED_KEY) === "1"; } catch {}
+  const SOUND_ON_ICON = `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 6h2.5l3.5-3v10l-3.5-3H2.5z"/><path d="M11 5.5a3.5 3.5 0 0 1 0 5"/><path d="M13 3.5a6.5 6.5 0 0 1 0 9"/></svg>`;
+  const SOUND_OFF_ICON = `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 6h2.5l3.5-3v10l-3.5-3H2.5z"/><path d="M11 6l4 4M15 6l-4 4"/></svg>`;
+  const soundButton = document.getElementById("sound");
+  function renderSound() {
+    soundButton.innerHTML = muted ? `${SOUND_OFF_ICON}<span>muted</span>` : `${SOUND_ON_ICON}<span>sound on</span>`;
+    soundButton.title = muted ? "unmute the chime when an agent needs you" : "mute the chime when an agent needs you";
+    soundButton.setAttribute("aria-pressed", String(muted));
+  }
+  soundButton.addEventListener("click", () => {
+    muted = !muted;
+    try { localStorage.setItem(MUTED_KEY, muted ? "1" : "0"); } catch {}
+    renderSound();
+  });
+  renderSound();
+
+  let audio = null;
+  function chime() {
+    if (muted) return;
+    audio ??= new AudioContext();
+    if (audio.state !== "running") return;
+    [[880, 0], [1320, 0.12]].forEach(([freq, delay]) => {
+      const start = audio.currentTime + delay;
+      const osc = audio.createOscillator();
+      const gain = audio.createGain();
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.0001, start);
+      gain.gain.exponentialRampToValueAtTime(0.2, start + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.35);
+      osc.connect(gain).connect(audio.destination);
+      osc.start(start);
+      osc.stop(start + 0.4);
+    });
+  }
+  const unlockAudio = () => {
+    audio ??= new AudioContext();
+    audio.resume();
+  };
+  ["pointerdown", "keydown"].forEach((type) => window.addEventListener(type, unlockAudio, { once: true }));
+
+  // Ages tick between refreshes without re-rendering.
+  function tickAges() {
+    document.querySelectorAll("#agents [data-since]").forEach((el) => {
+      el.textContent = `${el.dataset.label} ${ago(el.dataset.since)}`;
+    });
+  }
+
+  // Tabs. Tasks is the default; #agents opens the Agents tab, so a reload stays on it.
+  const currentTab = () => (location.hash === "#agents" ? "agents" : "tasks");
+
+  function showSummary() {
+    document.getElementById("summary").innerHTML = summaries[currentTab()];
+  }
+
+  function showTab() {
+    const tab = currentTab();
+    document.getElementById("board").hidden = tab !== "tasks";
+    document.getElementById("agents").hidden = tab !== "agents";
+    document.querySelectorAll("nav.tabs a").forEach((a) => a.classList.toggle("active", a.dataset.tab === tab));
+    showSummary();
+  }
+
+  // Jumping between a task and its agent: #task-<id> and #agent-<session id> open the right tab,
+  // scroll to the card and outline it for a moment. The hash is then set back to the plain tab, so
+  // the same link works again and a reload doesn't repeat the jump.
+  const HIGHLIGHT_MS = 2500;
+  let focus = null;
+
+  function route() {
+    const m = /^#(task|agent)-(.+)$/.exec(location.hash);
+    if (m) {
+      const isTask = m[1] === "task";
+      focus = {
+        tab: isTask ? "tasks" : "agents",
+        selector: isTask ? `#board li[data-id="${+m[2]}"]` : `#agents li[data-session="${CSS.escape(m[2])}"]`,
+        what: isTask ? `task #${+m[2]}` : `agent ${m[2].slice(0, 8)}`,
+        shown: false,
+      };
+      history.replaceState(null, "", isTask ? location.pathname : "#agents");
+    }
+    showTab();
+    applyFocus();
+  }
+
+  // Called after every render too, since a jump can land before the data does, and a refresh
+  // re-creates the cards.
+  function applyFocus() {
+    if (!focus) return;
+    const el = document.querySelector(focus.selector);
+    const loaded = focus.tab === "tasks" ? lastTasks : lastAgentsPayload;
+    if (!el) {
+      if (loaded) {
+        showToast(`${focus.what} isn't on the ${focus.tab === "tasks" ? "board (archived past the last 10 done?)" : "Agents tab"}`);
+        focus = null;
+      }
+      return;
+    }
+    const subtasks = el.closest("details.subtasks");
+    if (subtasks) subtasks.open = true;
+    el.classList.add("highlight");
+    if (!focus.shown) {
+      focus.shown = true;
+      el.scrollIntoView({ block: "center", behavior: "smooth" });
+      setTimeout(() => {
+        focus = null;
+        document.querySelectorAll(".highlight").forEach((h) => h.classList.remove("highlight"));
+      }, HIGHLIGHT_MS);
+    }
+  }
+
+  window.addEventListener("hashchange", route);
+
+  // Copy resume buttons, on agent cards and on task cards' last agent.
+  document.addEventListener("click", async (e) => {
+    const button = e.target.closest("button.copy");
+    if (!button) return;
+    try {
+      await navigator.clipboard.writeText(button.dataset.cmd);
+      const label = button.querySelector("span");
+      label.textContent = "copied";
+      setTimeout(() => { label.textContent = "copy resume"; }, 1500);
+    } catch {
+      showToast(button.dataset.cmd);
+    }
+  });
+
+  document.getElementById("agents").addEventListener("toggle", (e) => {
+    if (!e.target.matches?.("details.ended")) return;
+    try { localStorage.setItem(ENDED_KEY, e.target.open ? "1" : "0"); } catch { /* not persisted */ }
+  }, true);
+
+  // Drag and drop. A drop resolves to {status, position}: status changes the task's column, position
+  // ({before: id} or {after: id}) places it in the priority order. Subtasks reorder within their
+  // parent, or change status (staying nested) when dropped on another column.
+  let drag = null;
+  const board = document.getElementById("board");
+
+  function positionFor(e, li) {
+    const r = li.getBoundingClientRect();
+    return e.clientY < r.top + r.height / 2 ? { before: +li.dataset.id } : { after: +li.dataset.id };
+  }
+
+  function resolveDrop(e) {
+    const col = e.target.closest("section.column");
+    if (!drag || !col) return null;
+    const colStatus = col.dataset.status;
+    const statusChange = colStatus !== drag.status ? colStatus : null;
+
+    if (drag.parentId === null) {
+      const anchor = e.target.closest("li.task");
+      const usable = anchor && +anchor.dataset.id !== drag.id && colStatus !== "done";
+      const position = usable ? positionFor(e, anchor) : null;
+      if (!statusChange && !position) return null;
+      return { col, status: statusChange, position, anchor: position ? anchor : null };
+    }
+
+    const sibling = e.target.closest("li.sub");
+    if (sibling && +sibling.dataset.parent === drag.parentId) {
+      if (+sibling.dataset.id === drag.id) return null;
+      return { col, status: null, position: positionFor(e, sibling), anchor: sibling };
+    }
+    const card = e.target.closest("li.task");
+    if (card && +card.dataset.id === drag.parentId) return null;
+    return statusChange ? { col, status: statusChange, position: null, anchor: null } : null;
+  }
+
+  function clearIndicators() {
+    board.querySelectorAll(".drop-before, .drop-after").forEach((el) => el.classList.remove("drop-before", "drop-after"));
+    board.querySelectorAll(".drag-over").forEach((el) => el.classList.remove("drag-over"));
+  }
+
+  function showToast(message) {
+    const toast = document.getElementById("toast");
+    toast.textContent = message;
+    toast.classList.add("show");
+    clearTimeout(showToast.timer);
+    showToast.timer = setTimeout(() => toast.classList.remove("show"), 6000);
+  }
+
+  async function send(id, target) {
+    const body = {};
+    if (target.status) body.status = target.status;
+    if (target.position) Object.assign(body, target.position);
+    try {
+      const res = await fetch(`/api/tasks/${id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Jeli": "1" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) showToast((await res.json()).error || `HTTP ${res.status}`);
+    } catch (err) {
+      showToast(`can't reach jeli (${err.message})`);
+    }
+    lastPayload = null;
+    refresh();
+  }
+
+  // `toggle` doesn't bubble, so listen in the capture phase.
+  board.addEventListener("toggle", (e) => {
+    const details = e.target;
+    if (!details.matches?.("details.subtasks")) return;
+    const id = +details.dataset.task;
+    if (details.open) expanded.add(id); else expanded.delete(id);
+    saveExpanded();
+  }, true);
+
+  board.addEventListener("dragstart", (e) => {
+    const li = e.target.closest("li[data-id]");
+    if (!li) return;
+    drag = { id: +li.dataset.id, parentId: li.dataset.parent ? +li.dataset.parent : null, status: li.dataset.status };
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", li.dataset.id);
+    li.classList.add("dragging");
+  });
+
+  board.addEventListener("dragover", (e) => {
+    const target = resolveDrop(e);
+    clearIndicators();
+    if (!target) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    if (target.anchor) target.anchor.classList.add("before" in target.position ? "drop-before" : "drop-after");
+    else target.col.classList.add("drag-over");
+  });
+
+  board.addEventListener("dragleave", (e) => {
+    if (!board.contains(e.relatedTarget)) clearIndicators();
+  });
+
+  board.addEventListener("drop", (e) => {
+    const target = resolveDrop(e);
+    const id = drag?.id;
+    clearIndicators();
+    if (!target) return;
+    e.preventDefault();
+    drag = null;
+    send(id, target);
+  });
+
+  board.addEventListener("dragend", () => {
+    clearIndicators();
+    board.querySelectorAll(".dragging").forEach((el) => el.classList.remove("dragging"));
+    drag = null;
+  });
+
+  route();
+  refresh();
+  setInterval(refresh, REFRESH_MS);
+  setInterval(tickAges, 1000);
+</script>
+</body>
+</html>

@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>jeli palette</title>
+<link rel="icon" type="image/svg+xml" href="logo.svg">
+<link rel="stylesheet" href="palette.css">
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; }
+  main { max-width: 1200px; margin: 0 auto; padding: 32px 16px 64px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  h2 { font-size: 15px; margin: 32px 0 12px; }
+  p.lead { color: var(--muted); margin: 0; }
+  a { color: var(--link); text-decoration: underline; text-decoration-color: var(--link-underline); text-underline-offset: 2px; }
+
+  .swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; }
+  .swatch { background: var(--column); border: 1px solid var(--card-border); border-radius: 10px; overflow: hidden; }
+  .chip { height: 56px; border-bottom: 1px solid var(--card-border); }
+  .swatch .label { padding: 8px 10px; font-size: 12px; }
+  .swatch .name { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; }
+  .swatch .value { color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
+
+  .group { display: grid; grid-template-columns: 120px 1fr; gap: 10px 16px; align-items: center; }
+  .group .row-name { color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+  .group .row-items { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+  .tint { width: 72px; height: 28px; border-radius: 6px; border: 1px solid var(--card-border); }
+  .tag { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px; font-weight: 500; white-space: nowrap; }
+  .tag.kind { font-weight: 600; }
+
+  .board { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+  @media (max-width: 900px) { .board { grid-template-columns: minmax(0, 1fr); } }
+  .column { border-radius: 12px; padding: 10px; }
+  .column h3 { display: flex; align-items: center; gap: 8px; margin: 2px 4px 10px; font-size: 13px; }
+  .column h3 .count { color: var(--muted); font-weight: 500; }
+  .card { background: var(--card); border: 1px solid var(--card-border); border-radius: 10px; padding: 12px 14px; box-shadow: var(--shadow); margin-bottom: 8px; }
+  .card .title { font-weight: 600; }
+  .card .id { color: var(--muted); font-weight: 400; }
+  .card .meta { display: flex; flex-wrap: wrap; gap: 6px 10px; margin-top: 6px; font-size: 12.5px; color: var(--muted); align-items: center; }
+  .overdue { color: var(--overdue); font-weight: 600; }
+  .due-today { color: var(--due-today); font-weight: 600; }
+</style>
+</head>
+<body>
+<main>
+  <h1>jeli palette</h1>
+  <p class="lead">Every token in <code>palette.css</code>, then the groups side by side, then sample cards. Values are read live from the stylesheet.</p>
+
+  <h2>Neutrals</h2>
+  <div class="swatches" data-tokens="--bg --column --card --card-border --text --muted --link-underline"></div>
+
+  <h2>Status (quiet)</h2>
+  <div class="group" id="status"></div>
+
+  <h2>Kind (loud)</h2>
+  <div class="group" id="kind"></div>
+
+  <h2>Agent states (status hues, plus purple for waiting on others)</h2>
+  <div class="group" id="agents"></div>
+
+  <h2>Signals</h2>
+  <div class="group">
+    <span class="row-name">deadlines</span>
+    <span class="row-items"><span class="overdue">overdue (2026-10-01)</span><span class="due-today">due today</span><span style="color: var(--muted)">due 2026-11-04</span></span>
+    <span class="row-name">link</span>
+    <span class="row-items"><a href="#">ENG-6774</a><a href="#">fidesplus#6577</a></span>
+  </div>
+
+  <h2>All tokens</h2>
+  <div class="swatches" id="all"></div>
+
+  <h2>Sample board</h2>
+  <div class="board" id="board"></div>
+</main>
+<script>
+  const STATUSES = ["todo", "in_progress", "blocked", "done"];
+  const KINDS = ["implement", "review", "investigate", "release", "other"];
+  const css = getComputedStyle(document.documentElement);
+  const value = (name) => css.getPropertyValue(name).trim();
+
+  function swatch(name) {
+    return `<div class="swatch"><div class="chip" style="background: var(${name})"></div>
+      <div class="label"><div class="name">${name}</div><div class="value">${value(name)}</div></div></div>`;
+  }
+
+  document.querySelectorAll("[data-tokens]").forEach((el) => {
+    el.innerHTML = el.dataset.tokens.split(" ").map(swatch).join("");
+  });
+
+  document.getElementById("status").innerHTML = STATUSES.map((s) => `
+    <span class="row-name">${s}</span>
+    <span class="row-items">
+      <span class="dot" style="background: var(--status-${s}-dot)"></span>
+      <span class="tint" style="background: var(--status-${s}-column)"></span>
+      <span class="tag" style="background: var(--status-${s}-tag-bg); color: var(--status-${s}-tag-fg)">${s} · stage</span>
+    </span>`).join("");
+
+  document.getElementById("kind").innerHTML = KINDS.map((k) => `
+    <span class="row-name">${k}</span>
+    <span class="row-items">
+      <span class="tag kind" style="background: var(--kind-${k}-tag-bg); color: var(--kind-tag-fg)">${k}</span>
+    </span>`).join("");
+
+  const AGENT_GROUPS = { needs_you: ["blocked", "your_turn"], running: ["working", "waiting_bg"], others: ["waiting_others"], quiet: ["idle", "ended"] };
+  document.getElementById("agents").innerHTML = Object.entries(AGENT_GROUPS).map(([group, states]) => `
+    <span class="row-name">${group}</span>
+    <span class="row-items">
+      <span class="dot" style="background: var(--agent-${group}-dot)"></span>
+      <span class="tint" style="background: var(--agent-${group}-column)"></span>
+      ${states.map((s) => `<span class="tag" style="background: var(--agent-${s}-tag-bg); color: var(--agent-${s}-tag-fg)">${s} 4m</span>`).join("")}
+    </span>`).join("");
+
+  // Every custom property defined on :root in palette.css.
+  const all = [...document.styleSheets]
+    .filter((sheet) => sheet.href && sheet.href.endsWith("palette.css"))
+    .flatMap((sheet) => [...sheet.cssRules])
+    .flatMap((rule) => [...rule.style].filter((p) => p.startsWith("--") && p !== "--shadow"));
+  document.getElementById("all").innerHTML = all.map(swatch).join("");
+
+  const kindTag = (k) => `<span class="tag kind" style="background: var(--kind-${k}-tag-bg); color: var(--kind-tag-fg)">${k}</span>`;
+  const stageTag = (s, label) => `<span class="tag" style="background: var(--status-${s}-tag-bg); color: var(--status-${s}-tag-fg)">${label}</span>`;
+  const card = (rank, id, title, kind, status, stage, extra = "") => `
+    <div class="card">
+      <div class="title">${rank ? `<span class="id">${rank}.</span> ` : ""}${title} <span class="id">#${id}</span></div>
+      <div class="meta">${kindTag(kind)}${stage ? stageTag(status, stage) : ""}${extra}</div>
+    </div>`;
+  const SAMPLES = {
+    todo: [card(4, 9, "Plan topic editing follow-ups", "implement", "todo", "", `<a href="#">ENG-6900</a>`)],
+    in_progress: [
+      card(1, 1, "PBAC label inheritance/aggregation fix", "implement", "in_progress", "pr_draft", `<a href="#">ENG-6774</a><a href="#">fidesplus#6577</a>`),
+      card(2, 2, "6-month bug/defect analysis and team action items", "other", "in_progress", "ready to share", `<span class="due-today">due today</span>`),
+      card(3, 3, "Kairos 'latest' env auto-update", "investigate", "in_progress", "digging"),
+    ],
+    blocked: [
+      card(5, 4, "Review ENG-5084 stack", "review", "blocked", "waiting_on_author", `<span class="overdue">overdue (2026-10-18)</span>`),
+      card(6, 7, "Cut 2.97.0", "release", "blocked", "rc_testing"),
+    ],
+    done: [card(null, 8, "Review fidesplus#6067", "review", "done", "")],
+  };
+  const TITLES = { todo: "To do", in_progress: "In progress", blocked: "Blocked", done: "Done" };
+  document.getElementById("board").innerHTML = STATUSES.map((s) => `
+    <section class="column" style="background: var(--status-${s}-column)">
+      <h3><span class="dot" style="background: var(--status-${s}-dot)"></span>${TITLES[s]}<span class="count">${SAMPLES[s].length}</span></h3>
+      ${SAMPLES[s].join("")}
+    </section>`).join("");
+</script>
+</body>
+</html>

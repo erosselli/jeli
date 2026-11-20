@@ -1,0 +1,104 @@
+/* jeli color palette (dark only). Every color on the board comes from these tokens.
+   Status, kind, and signal colors never share a hue: status says where a task is,
+   kind says what it is, signals flag deadlines. Kind is the loudest group. */
+:root {
+  color-scheme: dark;
+
+  /* Neutrals: cool blue-gray. */
+  --bg: #0d1117;
+  --column: #151b23;
+  --card: #27303c;
+  --card-border: #36404e;
+  --subtask-border: #4a5566;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.25);
+  --text: #e6edf3;
+  --muted: #c3ccd6;
+
+  /* Status: quieter than kind. A dot, a faint column tint, and a tinted tag. */
+  --status-todo-dot: #8b96a3;
+  --status-todo-column: #151a21;
+  --status-todo-tag-bg: rgba(139, 150, 163, 0.30);
+  --status-todo-tag-fg: #dde3ea;
+
+  --status-in_progress-dot: #5b8fd9;
+  --status-in_progress-column: #141b27;
+  --status-in_progress-tag-bg: rgba(91, 143, 217, 0.34);
+  --status-in_progress-tag-fg: #c6daf8;
+
+  --status-blocked-dot: #e07b39;
+  --status-blocked-column: #1d1714;
+  --status-blocked-tag-bg: rgba(224, 123, 57, 0.34);
+  --status-blocked-tag-fg: #f8ccab;
+
+  --status-done-dot: #4fa86a;
+  --status-done-column: #131c17;
+  --status-done-tag-bg: rgba(79, 168, 106, 0.34);
+  --status-done-tag-fg: #b5e3c3;
+
+  /* Kind: the loud group, shown only as tags. Solid fills with dark text, so they stand apart
+     from the tinted status tags. */
+  --kind-tag-fg: #0d1117;
+  --kind-implement-tag-bg: #a68bff;
+  --kind-review-tag-bg: #3fcf9f;
+  --kind-investigate-tag-bg: #f07bbd;
+  --kind-release-tag-bg: #4ccbe0;
+  --kind-other-tag-bg: #9aa8b8;
+
+  /* Signals: one red family for deadlines. Links stay neutral, marked by underline only. */
+  --overdue: #ff6b61;
+  --due-today: #ffa39b;
+  --link: var(--text);
+  --link-underline: #5c6875;
+
+  /* Agent states, on the Agents tab and the live-agent dot on task cards. They reuse the status
+     colors by meaning where one fits. Needs me is blocked orange, running is in-progress blue, quiet
+     is to-do gray. Waiting on others has no task status to borrow from, so it borrows the implement
+     kind's purple, tinted like a status so it doesn't read as a kind tag. */
+  --agent-others-hue-dot: var(--kind-implement-tag-bg);
+  --agent-others-hue-column: #18162a;
+  --agent-others-hue-tag-bg: rgba(166, 139, 255, 0.30);
+  --agent-others-hue-tag-fg: #dcd2ff;
+
+  --agent-needs_you-column: var(--status-blocked-column);
+  --agent-needs_you-dot: var(--status-blocked-dot);
+  --agent-running-column: var(--status-in_progress-column);
+  --agent-running-dot: var(--status-in_progress-dot);
+  --agent-others-column: var(--agent-others-hue-column);
+  --agent-others-dot: var(--agent-others-hue-dot);
+  --agent-quiet-column: var(--status-todo-column);
+  --agent-quiet-dot: var(--status-todo-dot);
+
+  --agent-blocked-tag-bg: var(--status-blocked-tag-bg);
+  --agent-blocked-tag-fg: var(--status-blocked-tag-fg);
+  --agent-your_turn-tag-bg: var(--status-blocked-tag-bg);
+  --agent-your_turn-tag-fg: var(--status-blocked-tag-fg);
+  --agent-working-tag-bg: var(--status-in_progress-tag-bg);
+  --agent-working-tag-fg: var(--status-in_progress-tag-fg);
+  --agent-waiting_bg-tag-bg: var(--status-in_progress-tag-bg);
+  --agent-waiting_bg-tag-fg: var(--status-in_progress-tag-fg);
+  --agent-waiting_others-tag-bg: var(--agent-others-hue-tag-bg);
+  --agent-waiting_others-tag-fg: var(--agent-others-hue-tag-fg);
+  --agent-idle-tag-bg: var(--status-todo-tag-bg);
+  --agent-idle-tag-fg: var(--status-todo-tag-fg);
+  --agent-ended-tag-bg: var(--status-todo-tag-bg);
+  --agent-ended-tag-fg: var(--status-todo-tag-fg);
+
+  /* Buttons on cards: one step lighter than the card so they read as controls. */
+  --button-bg: var(--card-border);
+  --button-border: var(--subtask-border);
+  --button-fg: var(--text);
+  --button-hover-border: var(--drag-over-outline);
+
+  /* The outline on a card jumped to from its task or agent. */
+  --highlight: var(--drop-indicator);
+
+  /* Tabs. */
+  --tab-active-bg: var(--card);
+  --tab-badge-bg: var(--status-blocked-dot);
+  --tab-badge-fg: var(--kind-tag-fg);
+
+  /* Drag and drop, and error toasts. */
+  --drop-indicator: #e6edf3;
+  --drag-over-outline: #6b7888;
+  --error: var(--overdue);
+}

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- jeli logo: a tiny board, three columns of cards in the kind colors.
+       Colors are copied from palette.css; an SVG loaded as an image can't read the page's tokens. -->
+  <rect width="64" height="64" rx="14" fill="#27303c"/>
+  <rect x="10" y="12" width="12" height="16" rx="3" fill="#a68bff"/>
+  <rect x="10" y="32" width="12" height="10" rx="3" fill="#a68bff" opacity="0.55"/>
+  <rect x="26" y="12" width="12" height="24" rx="3" fill="#3fcf9f"/>
+  <rect x="42" y="12" width="12" height="10" rx="3" fill="#f07bbd"/>
+  <rect x="42" y="26" width="12" height="14" rx="3" fill="#f07bbd" opacity="0.55"/>
+  <rect x="10" y="48" width="44" height="4" rx="2" fill="#4a5566"/>
+</svg>
