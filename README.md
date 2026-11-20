@@ -2,7 +2,7 @@
 
 A local task tracker and session board for [Claude Code](https://claude.com/claude-code).
 
-jeli keeps a list of the work you do with Claude Code (tickets, PR reviews, investigations, releases) and shows what every open Claude Code session is doing and which ones are waiting on you. Claude logs and updates tasks itself through a skill, so the tracker stays current without manual bookkeeping. Everything runs locally; nothing leaves your machine.
+jeli keeps a list of the work you do with Claude Code (tickets, PR reviews, investigations, releases) and shows what every open Claude Code session is doing and which ones are waiting on you. Claude logs and updates tasks itself through a skill, so the tracker stays current without manual bookkeeping. Everything runs locally and is stored in SQLite databases under `~/jeli/data/`; nothing leaves your machine.
 
 ## Features
 
